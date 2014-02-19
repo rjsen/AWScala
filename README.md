@@ -21,7 +21,7 @@ http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/
 ## How to use
 
 ```scala
-libraryDependencies += "com.github.seratch" %% "awscala" % "[0.1,)"
+libraryDependencies += "com.github.seratch" %% "awscala" % "[0.2,)"
 ```
 
 ## Examples
@@ -230,6 +230,14 @@ simpleDB.domains.foreach(_.destroy())
 https://github.com/seratch/awscala/blob/master/src/main/scala/awscala/simpledb/SimpleDB.scala
 
 https://github.com/seratch/awscala/blob/master/src/test/scala/awscala/SimpleDBSpec.scala
+
+### Amazon Elastic MapReduce (Amazon EMR)
+
+Created by @CruncherBigData. If you have any feedback or questions, please contact @CruncherBigData.
+
+https://github.com/seratch/awscala/blob/master/src/main/scala/awscala/emr/EMR.scala
+
+https://github.com/seratch/awscala/blob/master/src/test/scala/awscala/EMRSpec.scala
 
 ## How to contribute
 
