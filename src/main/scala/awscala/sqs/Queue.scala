@@ -3,6 +3,7 @@ package awscala.sqs
 case class Queue(url: String) {
 
   def messages()(implicit sqs: SQS): Seq[Message] = sqs.receiveMessage(this)
+  def messageBatch(batchSize: Int)(implicit sqs: SQS): Seq[Message] = sqs.receiveMessageBatch(this, batchSize)
 
   def add(messages: String*)(implicit sqs: SQS) = sqs.sendMessages(this, messages)
   def addAll(messages: Seq[String])(implicit sqs: SQS) = sqs.sendMessages(this, messages)
