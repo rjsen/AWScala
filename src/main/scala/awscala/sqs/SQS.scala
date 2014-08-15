@@ -36,8 +36,7 @@ trait SQS extends aws.AmazonSQS {
   def delete(queue: Queue): Unit = deleteQueue(queue)
   def deleteQueue(queue: Queue): Unit = deleteQueue(new aws.model.DeleteQueueRequest(queue.url))
 
-
-  def queues: Seq[Queue] = listQueues().getQueueUrls.asScala.map(url => Queue(url)).toSeq
+  def queues: Seq[Queue] = listQueues().getQueueUrls.asScala.map(url => Queue(url, this)).toSeq
 
   def queue(name: String): Option[Queue] = queues.find(_.url.split("/").last == name)
 
@@ -69,12 +68,12 @@ trait SQS extends aws.AmazonSQS {
   def receive(queue: Queue): Seq[Message] = receiveMessage(queue)
   def receiveMessage(queue: Queue): Seq[Message] = receiveMessage(queue, 1)
   def receiveMessage(queue: Queue, count: Int = 10, requestCredentials: Option[AWSSessionCredentials] = None): Seq[Message] = {
-    val req = new aws.model.ReceiveMessageRequest(queue.url).withMaxNumberOfMessages(count)
+    val req = new aws.model.ReceiveMessageRequest(queue.url).withMaxNumberOfMessages(count).withAttributeNames("All")
     requestCredentials.foreach(c => req.setRequestCredentials(c))
     receiveMessage(req).getMessages.asScala.map(msg => Message(queue, msg)).toSeq
   }
   def receiveMessageBatch(queue: Queue, batchSize: Int = 10): Seq[Message] = {
-    val req = new aws.model.ReceiveMessageRequest(queue.url)
+    val req = new aws.model.ReceiveMessageRequest(queue.url).withAttributeNames("All")
     req.setMaxNumberOfMessages(batchSize)
     receiveMessage(req).getMessages.asScala.map(msg => Message(queue, msg)).toSeq
   }
