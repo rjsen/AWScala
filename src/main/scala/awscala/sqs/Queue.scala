@@ -1,17 +1,16 @@
 package awscala.sqs
 
-case class Queue(url: String) {
+case class Queue(url: String, sqs: SQS) {
 
-  def messages()(implicit sqs: SQS): Seq[Message] = sqs.receiveMessage(this)
-  def messageBatch(batchSize: Int)(implicit sqs: SQS): Seq[Message] = sqs.receiveMessageBatch(this, batchSize)
+  def messages(): Seq[Message] = sqs.receiveMessage(this)
+  def messageBatch(batchSize: Int): Seq[Message] = sqs.receiveMessageBatch(this, batchSize)
 
-  def add(messages: String*)(implicit sqs: SQS) = sqs.sendMessages(this, messages)
-  def addAll(messages: Seq[String])(implicit sqs: SQS) = sqs.sendMessages(this, messages)
+  def add(messages: String*) = sqs.sendMessages(this, messages)
+  def addAll(messages: Seq[String]) = sqs.sendMessages(this, messages)
 
-  def remove(messages: Message*)(implicit sqs: SQS) = sqs.deleteMessages(messages)
-  def removeAll(messages: Seq[Message])(implicit sqs: SQS) = sqs.deleteMessages(messages)
+  def remove(messages: Message*) = sqs.deleteMessages(messages)
+  def removeAll(messages: Seq[Message]) = sqs.deleteMessages(messages)
 
-  def destroy()(implicit sqs: SQS) = sqs.deleteQueue(this)
+  def destroy() = sqs.deleteQueue(this)
 
 }
-

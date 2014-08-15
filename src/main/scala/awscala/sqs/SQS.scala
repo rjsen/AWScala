@@ -30,12 +30,12 @@ trait SQS extends aws.AmazonSQS {
   // createQueue is added since SDK 1.7.x
   def createQueueAndReturnQueueName(name: String): Queue = {
     val result = createQueue(new aws.model.CreateQueueRequest(name))
-    Queue(result.getQueueUrl)
+    Queue(result.getQueueUrl, this)
   }
   def delete(queue: Queue): Unit = deleteQueue(queue)
   def deleteQueue(queue: Queue): Unit = deleteQueue(new aws.model.DeleteQueueRequest(queue.url))
 
-  def queues: Seq[Queue] = listQueues().getQueueUrls.asScala.map(url => Queue(url)).toSeq
+  def queues: Seq[Queue] = listQueues().getQueueUrls.asScala.map(url => Queue(url, this)).toSeq
   def queue(name: String): Option[Queue] = queues.find(_.url.endsWith(name))
 
   def queueUrl(name: String): Option[String] = try {
@@ -67,7 +67,7 @@ trait SQS extends aws.AmazonSQS {
   def receiveMessage(queue: Queue): Seq[Message] = {
     receiveMessage(new aws.model.ReceiveMessageRequest(queue.url)).getMessages.asScala.map(msg => Message(queue, msg)).toSeq
   }
-  def receiveMessageBatch(queue: Queue, batchSize: Int): Seq[Message] = {
+  def receiveMessageBatch(queue: Queue, batchSize: Int = 10): Seq[Message] = {
     val req = new aws.model.ReceiveMessageRequest(queue.url)
     req.setMaxNumberOfMessages(batchSize)
     receiveMessage(req).getMessages.asScala.map(msg => Message(queue, msg)).toSeq
