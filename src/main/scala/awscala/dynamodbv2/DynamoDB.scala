@@ -119,11 +119,13 @@ trait DynamoDB extends aws.AmazonDynamoDB {
   def get(table: Table, hashPK: Any): Option[Item] = getItem(table, hashPK)
 
   def getItem(table: Table, hashPK: Any): Option[Item] = try {
-    Some(Item(table, getItem(new aws.model.GetItemRequest()
+    val attributes = getItem(new aws.model.GetItemRequest()
       .withTableName(table.name)
       .withKey(Map(table.hashPK -> AttributeValue.toJavaValue(hashPK)).asJava)
       .withConsistentRead(consistentRead)
-    ).getItem))
+    ).getItem
+
+    Option(attributes).map(Item(table, _))
   } catch { case e: aws.model.ResourceNotFoundException => None }
 
   def get(table: Table, hashPK: Any, rangePK: Any): Option[Item] = getItem(table, hashPK, rangePK)
@@ -133,32 +135,58 @@ trait DynamoDB extends aws.AmazonDynamoDB {
       case None => getItem(table, hashPK)
       case _ =>
         try {
-          Some(Item(table, getItem(new aws.model.GetItemRequest()
+          val attributes = getItem(new aws.model.GetItemRequest()
             .withTableName(table.name)
             .withKey(Map(
               table.hashPK -> AttributeValue.toJavaValue(hashPK),
               table.rangePK.get -> AttributeValue.toJavaValue(rangePK)
             ).asJava)
             .withConsistentRead(consistentRead)
-          ).getItem))
+          ).getItem
+
+          Option(attributes).map(Item(table, _))
         } catch { case e: aws.model.ResourceNotFoundException => None }
     }
   }
 
   def batchGet(tableAndAttributes: Map[Table, List[(String, Any)]]): Seq[Item] = {
-    val responses = batchGetItem(new aws.model.BatchGetItemRequest()
-      .withRequestItems(tableAndAttributes.map {
+    import com.amazonaws.services.dynamodbv2.model.{ BatchGetItemRequest, BatchGetItemResult }
+
+    case class State(items: List[Item], keys: java.util.Map[String, KeysAndAttributes])
+
+    @scala.annotation.tailrec
+    def next(state: State): (Option[Item], State) =
+      state match {
+        case State(head :: tail, remaining) => (Some(head), State(tail, remaining))
+        case State(Nil, remaining) if !remaining.isEmpty => {
+          val result = batchGetItem(new BatchGetItemRequest(remaining))
+          next(State(toItems(result).toList, result.getUnprocessedKeys()))
+        }
+        case State(Nil, remaining) if remaining.isEmpty => (None, state)
+      }
+
+    def toStream(state: State): Stream[Item] =
+      next(state) match {
+        case (Some(item), nextState) => Stream.cons(item, toStream(nextState))
+        case (None, _) => Stream.Empty
+      }
+
+    def toItems(result: BatchGetItemResult): Seq[Item] = {
+      result.getResponses.asScala.toSeq.flatMap {
+        case (t, as) => { table(t).map(table => as.asScala.toSeq.map { a => Item(table, a) }).getOrElse(Nil) }
+      }
+    }
+
+    def toJava(tableAndAttributes: Map[Table, List[(String, Any)]]) =
+      tableAndAttributes.map {
         case (table, attributes) =>
           table.name -> new KeysAndAttributes().withKeys(
             attributes.map {
               case (k, v) => Map(k -> AttributeValue.toJavaValue(v)).asJava
-            }.asJava
-          )
-      }.asJava)).getResponses
+            }.asJava)
+      }.asJava
 
-    responses.asScala.toSeq.map {
-      case (t, as) => table(t).map(table => as.asScala.toList.map { a => Item(table, a) })
-    }.flatten.flatten
+    toStream(State(Nil, toJava(tableAndAttributes)))
   }
 
   def put(table: Table, hashPK: Any, attributes: (String, Any)*): Unit = {
